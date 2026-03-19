@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+<meta name="theme-color" content="#021e19">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<!-- v1773948563277 -->
+<title>Vida em Meses — NOMOS Sports</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#021e19; --s1:#032e27; --s2:#043d33; --s3:#065040;
+  --lime:#c8e05b; --lime-d:#a8bc44;
+  --text:#f4ece6; --muted:#a6a797; --dim:#3a4a38; --red:#e05030;
+  --tap:56px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;background:var(--bg);}
+body{font-family:'DM Sans',sans-serif;font-weight:300;color:var(--text);}
+
+/* ── SHELL ── */
+#app{width:100%;height:100%;max-width:430px;margin:0 auto;position:relative;overflow:hidden;display:flex;flex-direction:column;}
+
+/* Slide 12 (text input) needs special treatment when keyboard opens */
+.slide-text-input {
+  justify-content: flex-start;
+  padding-top: 120px;
+  padding-bottom: 80px;
+}
+
+/* ── PROGRESS ── */
+#progress-bar{position:absolute;top:0;left:0;right:0;z-index:100;display:flex;gap:4px;padding:12px 16px 0;}
+.prog-seg{flex:1;height:3px;background:rgba(255,255,255,0.12);border-radius:2px;overflow:hidden;}
+.prog-fill{height:100%;background:var(--lime);border-radius:2px;width:0%;transition:width .3s ease;}
+
+/* ── LOGO ── */
+#logo-bar{position:absolute;top:24px;left:0;right:0;z-index:99;text-align:center;font-family:'DM Serif Display',serif;font-size:11px;letter-spacing:.2em;color:var(--lime);text-transform:uppercase;pointer-events:none;}
+
+/* ── HOURS COUNTER ── */
+#hours-counter {
+  position: absolute;
+  top: 44px; left: 0; right: 0;
+  z-index: 98;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity .3s;
+  pointer-events: none;
+}
+#hours-counter.visible { opacity: 1; }
+.hc-track {
+  display: flex;
+  gap: 2px;
+  align-items: flex-end;
+  height: 20px;
+}
+.hc-seg {
+  width: 9px;
+  border-radius: 2px;
+  background: var(--s3);
+  transition: height .35s ease, background .35s ease;
+}
+.hc-meta {
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: .04em;
+}
+.hc-meta strong { color: var(--text); font-weight: 500; }
+
+/* ── SLIDES ── */
+#slides{flex:1;position:relative;overflow:hidden;}
+.slide{
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;justify-content:center;align-items:center;
+  padding:90px 28px 150px;
+  transform:translateX(100%);
+  transition:transform .38s cubic-bezier(.4,0,.2,1);
+  will-change:transform;
+}
+.slide.active{transform:translateX(0);}
+.slide.past{transform:translateX(-100%);}
+.s-eye{font-size:11px;letter-spacing:.16em;color:var(--lime);text-transform:uppercase;font-weight:500;margin-bottom:16px;text-align:center;}
+.s-q{font-family:'DM Serif Display',serif;font-size:clamp(26px,8vw,36px);font-weight:400;line-height:1.15;text-align:center;margin-bottom:10px;}
+.s-q em{font-style:italic;color:var(--lime);}
+.s-hint{font-size:13px;color:var(--muted);text-align:center;line-height:1.6;margin-bottom:32px;max-width:300px;}
+.s-hint a{color:var(--lime);text-decoration:underline;}
+.s-tip{font-size:12px;color:var(--dim);background:var(--s2);border-radius:10px;padding:10px 14px;line-height:1.6;margin-top:-16px;margin-bottom:24px;max-width:340px;text-align:center;}
+
+/* slider */
+.slider-wrap{width:100%;max-width:340px;}
+.sv{font-family:'DM Serif Display',serif;font-size:clamp(48px,14vw,64px);font-weight:400;color:var(--lime);text-align:center;line-height:1;margin-bottom:4px;letter-spacing:-.02em;}
+.su{font-size:14px;color:var(--muted);text-align:center;margin-bottom:28px;}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:4px;background:var(--s3);border-radius:4px;outline:none;cursor:pointer;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:32px;height:32px;border-radius:50%;background:var(--lime);border:3px solid var(--bg);box-shadow:0 0 0 2px var(--lime-d);cursor:pointer;transition:transform .12s;}
+input[type=range]:active::-webkit-slider-thumb{transform:scale(1.12);}
+input[type=range]::-moz-range-thumb{width:32px;height:32px;border-radius:50%;background:var(--lime);border:3px solid var(--bg);cursor:pointer;}
+
+/* text input for custom activity */
+.text-input{
+  width:100%;max-width:340px;
+  background:var(--s2);border:1.5px solid rgba(200,224,91,0.2);
+  border-radius:14px;color:var(--text);
+  font-family:'DM Sans',sans-serif;font-size:18px;font-weight:300;
+  padding:14px 18px;outline:none;text-align:center;
+  transition:border-color .2s;margin-bottom:16px;
+}
+.text-input:focus{border-color:var(--lime);}
+.text-input::placeholder{color:var(--dim);}
+
+/* hero */
+.hero-title{font-family:'DM Serif Display',serif;font-size:clamp(36px,11vw,52px);font-weight:400;line-height:1.05;text-align:center;margin-bottom:16px;}
+.hero-title em{font-style:italic;color:var(--lime);}
+.hero-sub{font-size:15px;color:var(--muted);text-align:center;line-height:1.7;max-width:280px;margin-bottom:48px;}
+
+/* ── BOTTOM BAR ── */
+#bottom-bar{
+  position:absolute;bottom:0;left:0;right:0;
+  padding:16px 24px calc(16px + env(safe-area-inset-bottom));
+  background:linear-gradient(to top,var(--bg) 70%,transparent);
+  display:flex;flex-direction:column;gap:10px;
+  max-width:430px;margin:0 auto;
+}
+#bottom-bar.hidden{display:none;}
+.btn-next{width:100%;padding:18px;background:var(--lime);color:var(--bg);border:none;border-radius:16px;font-family:'DM Sans',sans-serif;font-size:16px;font-weight:500;cursor:pointer;min-height:var(--tap);transition:background .15s,transform .1s;letter-spacing:.01em;}
+.btn-next:active{transform:scale(.98);background:var(--lime-d);}
+.btn-next.ghost{background:transparent;color:var(--muted);border:1.5px solid rgba(255,255,255,0.1);font-size:14px;padding:14px;min-height:48px;}
+
+/* ── RESULT SCREEN ── */
+#result-screen{display:none;flex-direction:column;height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;background:#010f0d;}
+#result-screen.active{display:flex;}
+
+/* Post card */
+#post-card{background:var(--bg);margin:16px;border-radius:24px;overflow:hidden;border:1px solid rgba(200,224,91,0.15);flex-shrink:0;}
+.pc-header{padding:18px 20px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.05);}
+.pc-brand{font-family:'DM Serif Display',serif;font-size:11px;letter-spacing:.18em;color:var(--lime);text-transform:uppercase;}
+.pc-meta{font-size:11px;color:var(--muted);}
+
+/* SVG grid */
+.pc-grid{padding:16px 20px 10px;}
+.pc-grid-label{font-size:10px;letter-spacing:.14em;color:var(--lime);text-transform:uppercase;font-weight:500;margin-bottom:10px;}
+#grid-svg{display:block;width:100%;height:auto;}
+.pc-legend{display:flex;flex-wrap:wrap;gap:5px 12px;margin-top:10px;}
+.pc-leg{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted);}
+.pc-leg-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+
+/* Stats */
+.pc-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:rgba(255,255,255,0.04);border-top:1px solid rgba(255,255,255,0.05);border-bottom:1px solid rgba(255,255,255,0.05);}
+.pc-stat{background:var(--bg);padding:14px 8px;text-align:center;opacity:0;transform:translateY(8px);transition:opacity .4s,transform .4s;}
+.pc-stat.in{opacity:1;transform:translateY(0);}
+.pc-stat-n{font-family:'DM Serif Display',serif;font-size:clamp(18px,5vw,24px);font-weight:400;line-height:1;margin-bottom:4px;}
+.pc-stat-l{font-size:9px;color:var(--muted);line-height:1.4;}
+
+/* Free time donut */
+.pc-free{padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.05);opacity:0;transform:translateY(8px);transition:opacity .5s,transform .5s;}
+.pc-free.in{opacity:1;transform:translateY(0);}
+.pc-free-label{font-size:10px;letter-spacing:.12em;color:var(--lime);text-transform:uppercase;font-weight:500;margin-bottom:14px;}
+.pc-free-inner{display:flex;align-items:center;gap:18px;}
+.pc-free-donut{flex-shrink:0;}
+.pc-free-legs{display:flex;flex-direction:column;gap:7px;flex:1;}
+.pc-free-row{display:flex;align-items:center;justify-content:space-between;font-size:11px;}
+.pc-free-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-right:7px;}
+.pc-free-name{color:var(--muted);display:flex;align-items:center;flex:1;}
+.pc-free-pct{font-weight:500;}
+
+/* Duel (3 panels) */
+.pc-duel{padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.05);opacity:0;transform:translateY(8px);transition:opacity .5s,transform .5s;}
+.pc-duel.in{opacity:1;transform:translateY(0);}
+.pc-duel-inner{display:flex;gap:6px;}
+.pc-duel-panel{flex:1;border-radius:14px;padding:12px 8px;text-align:center;}
+.pc-duel-panel.red{background:rgba(224,80,48,0.12);border:1px solid rgba(224,80,48,0.25);}
+.pc-duel-panel.grn{background:rgba(200,224,91,0.08);border:1px solid rgba(200,224,91,0.2);}
+.pc-duel-panel.wht{background:rgba(244,236,230,0.06);border:1px solid rgba(244,236,230,0.15);}
+.pc-duel-panel.dim{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);}
+.pc-duel-num{font-family:'DM Serif Display',serif;font-size:clamp(18px,5vw,22px);font-weight:400;line-height:1;margin-bottom:4px;}
+.pc-duel-lbl{font-size:10px;color:var(--muted);line-height:1.4;}
+/* Insight */
+.pc-insight{padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.05);opacity:0;transform:translateY(8px);transition:opacity .5s,transform .5s;}
+.pc-insight.in{opacity:1;transform:translateY(0);}
+.pc-insight-txt{font-family:'DM Serif Display',serif;font-size:clamp(15px,4.5vw,19px);line-height:1.5;margin-bottom:6px;}
+.pc-insight-txt strong{color:var(--lime);font-style:italic;font-weight:400;}
+.pc-insight-sub{font-size:12px;color:var(--muted);line-height:1.6;}
+
+/* Custom activity — now inside duel as third panel, no separate card needed */
+
+
+/* Card footer */
+.pc-footer{padding:12px 20px;display:flex;align-items:center;justify-content:space-between;}
+.pc-url{font-size:10px;color:var(--dim);letter-spacing:.04em;}
+.pc-tag{font-size:10px;color:var(--lime);font-weight:500;}
+
+/* Actions */
+.result-actions{padding:0 16px 14px;display:flex;flex-direction:column;gap:10px;flex-shrink:0;}
+.btn-share{width:100%;padding:16px;background:var(--lime);color:var(--bg);border:none;border-radius:16px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:background .15s,transform .1s;}
+.btn-share:active{transform:scale(.98);background:var(--lime-d);}
+.btn-share.ghost{background:transparent;color:var(--muted);border:1px solid rgba(255,255,255,0.08);font-size:14px;padding:13px;}
+
+/* Compare */
+.result-compare{padding:0 16px;display:flex;flex-direction:column;gap:10px;flex-shrink:0;}
+.cmp-card{background:var(--s1);border:1px solid rgba(200,224,91,0.08);border-radius:20px;padding:18px;opacity:0;transform:translateY(16px);transition:opacity .5s,transform .5s;}
+.cmp-card.in{opacity:1;transform:translateY(0);}
+.cmp-label{font-size:10px;letter-spacing:.14em;color:var(--lime);text-transform:uppercase;font-weight:500;margin-bottom:14px;}
+.bar-row{display:flex;flex-direction:column;gap:12px;}
+.bar-item{display:flex;flex-direction:column;gap:5px;}
+.bar-meta{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);}
+.bar-bg{background:var(--s2);border-radius:4px;height:6px;overflow:hidden;}
+.bar-fill{height:6px;border-radius:4px;width:0;transition:width 1.2s cubic-bezier(.4,0,.2,1);}
+.cmp-hint{font-size:10px;color:var(--dim);margin-top:10px;line-height:1.6;}
+
+.result-refs{padding:20px 16px calc(40px + env(safe-area-inset-bottom));text-align:center;font-size:10px;color:var(--dim);line-height:1.8;flex-shrink:0;}
+.result-refs a{color:var(--muted);text-decoration:none;display:block;}
+.result-refs a:first-of-type{color:var(--lime);}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="progress-bar"></div>
+  <div id="logo-bar">NOMOS Sports</div>
+
+  <!-- Hours counter: 24 segments = 24h -->
+  <div id="hours-counter">
+    <div class="hc-track" id="hc-track"></div>
+    <div class="hc-meta" id="hc-meta">0h preenchidas de 24h</div>
+  </div>
+
+  <div id="slides">
+    <!-- 0: Hero -->
+    <div class="slide active" data-index="0">
+      <div class="hero-title">Sua vida em<br><em>meses</em></div>
+      <div class="hero-sub">Descubra quantos meses você tem — e o que você está fazendo com eles.</div>
+    </div>
+    <!-- 1: Idade -->
+    <div class="slide" data-index="1">
+      <div class="s-eye">Sobre você</div>
+      <div class="s-q">Quantos anos<br>você tem?</div>
+      <div class="s-hint">Vamos calcular a partir dos 18 anos.</div>
+      <div class="slider-wrap">
+        <div class="sv" id="v-idade">25</div><div class="su">anos</div>
+        <input type="range" id="s-idade" min="15" max="75" value="25" step="1">
+      </div>
+    </div>
+    <!-- 2: Aposentadoria -->
+    <div class="slide" data-index="2">
+      <div class="s-eye">Sobre você</div>
+      <div class="s-q">Com quantos anos<br>quer se <em>aposentar</em>?</div>
+      <div class="slider-wrap">
+        <div class="sv" id="v-aposent">65</div><div class="su">anos</div>
+        <input type="range" id="s-aposent" min="40" max="85" value="65" step="1">
+      </div>
+    </div>
+    <!-- 3: Expectativa -->
+    <div class="slide" data-index="3">
+      <div class="s-eye">Sobre você</div>
+      <div class="s-q">Até que idade<br>planeja <em>viver</em>?</div>
+      <div class="s-hint">Seja otimista.</div>
+      <div class="slider-wrap">
+        <div class="sv" id="v-expect">90</div><div class="su">anos</div>
+        <input type="range" id="s-expect" min="60" max="105" value="90" step="1">
+      </div>
+    </div>
+    <!-- 4: Sono -->
+    <div class="slide" data-index="4">
+      <div class="s-eye">Rotina diária</div>
+      <div class="s-q">Quantas horas<br>você <em>dorme</em>?</div>
+      <div class="slider-wrap">
+        <div class="sv" id="v-sono">8</div><div class="su">horas por dia</div>
+        <input type="range" id="s-sono" min="4" max="12" value="8" step="0.5">
+      </div>
+    </div>
+    <!-- 5: Trabalho -->
+    <div class="slide" data-index="5">
+      <div class="s-eye">Rotina diária</div>
+      <div class="s-q">Quantas horas<br>você <em>trabalha</em>?</div>
+      <div class="s-hint">Inclua estudos. Nos dias que trabalha.</div>
+      <div class="slider-wrap">
+        <div class="sv" id="v-trabalho">8</div><div class="su">horas por dia</div>
+        <input type="range" id="s-trabalho" min="0" max="16" value="8" step="0.5">
+      </div>
+    </div>
+    <!-- 6: Deslocamento -->
+    <div class="slide" data-index="6">
+      <div class="s-eye">Rotina diária</div>
+      <div class="s-q">Quanto tempo<br>no <em>trânsito</em>?</div>
+      <div class="s-hint">Carro, metrô, ônibus — tudo conta.</div>
+      <div class="slider-wrap">
+        <div class="sv" id="v-desloc">1</div><div class="su">horas por dia</div>
+        <input type="range" id="s-desloc" min="0" max="6" value="1" step="0.25">
+      </div>
+    </div>
+    <!-- 7: Refeições -->
+    <div class="slide" data-index="7">
+      <div class="s-eye">Rotina diária</div>
+      <div class="s-q">Quanto tempo<br>em <em>refeições</em>?</div>
+      <div class="s-hint">Cozinhar, comer, lavar louça.</div>
+      <div class="slider-wrap">
+        <div class="sv" id="v-refeicao">1</div><div class="su">horas por dia</div>
+        <input type="range" id="s-refeicao" min="0.25" max="4" value="1" step="0.25">
+      </div>
+    </div>
+    <!-- 8: Higiene -->
+    <div class="slide" data-index="8">
+      <div class="s-eye">Rotina diária</div>
+      <div class="s-q">Quanto tempo em<br><em>higiene</em> e cuidados?</div>
+      <div class="slider-wrap">
+        <div class="sv" id="v-higiene">0,5</div><div class="su">horas por dia</div>
+        <input type="range" id="s-higiene" min="0.25" max="2" value="0.5" step="0.25">
+      </div>
+    </div>
+    <!-- 9: Tarefas -->
+    <div class="slide" data-index="9">
+      <div class="s-eye">Rotina diária</div>
+      <div class="s-q">E em <em>tarefas<br>domésticas</em>?</div>
+      <div class="s-hint">Compras, limpeza, afazeres.</div>
+      <div class="slider-wrap">
+        <div class="sv" id="v-tarefas">0,5</div><div class="su">horas por dia</div>
+        <input type="range" id="s-tarefas" min="0" max="4" value="0.5" step="0.25">
+      </div>
+    </div>
+    <!-- 10: Tela -->
+    <div class="slide" data-index="10">
+      <div class="s-eye">Tempo livre</div>
+      <div class="s-q">Quanto tempo<br>em <em>telas</em>?</div>
+      <div class="s-hint">Celular, TV, games — fora do trabalho.<br><br>
+        <span style="font-size:11px;color:var(--dim)">💡 Dica: você pode ver seu tempo de uso atual em Configurações → Tempo de Uso (iPhone) ou Bem-estar Digital (Android).</span>
+      </div>
+      <div class="slider-wrap">
+        <div class="sv" id="v-tela">4</div><div class="su">horas por dia</div>
+        <input type="range" id="s-tela" min="0" max="14" value="4" step="0.5">
+      </div>
+    </div>
+    <!-- 11: Exercício -->
+    <div class="slide" data-index="11">
+      <div class="s-eye">Tempo livre</div>
+      <div class="s-q">E em <em>exercício<br>físico</em>?</div>
+      <div class="s-hint">Academia, corrida, esporte, caminhada.</div>
+      <div class="slider-wrap">
+        <div class="sv" id="v-exercicio">0,5</div><div class="su">horas por dia</div>
+        <input type="range" id="s-exercicio" min="0" max="4" value="0.5" step="0.25">
+      </div>
+    </div>
+    <!-- 12: Atividade personalizada -->
+    <div class="slide slide-text-input" data-index="12">
+      <div class="s-eye">Tempo livre</div>
+      <div class="s-q" style="margin-bottom:16px">Se tivesse que escolher<br>uma atividade <em>só sua</em>?</div>
+      <div class="s-hint" style="margin-bottom:24px">Além de telas e exercício — família, viagens, leitura, música... o que não pode faltar no seu tempo livre?</div>
+      <input type="text" class="text-input" id="s-atividade" placeholder="ex: viagens, família, leitura..." maxlength="30" autocomplete="off" inputmode="text" enterkeyhint="done">
+      <div style="font-size:12px;color:var(--dim);text-align:center;max-width:280px;margin-top:4px">Pode deixar em branco se preferir.</div>
+    </div>
+  </div>
+
+  <div id="bottom-bar">
+    <button class="btn-next" id="btn-next">Continuar →</button>
+    <button class="btn-next ghost" id="btn-back" style="display:none">← Voltar</button>
+  </div>
+
+  <!-- RESULT -->
+  <div id="result-screen">
+    <div id="post-card">
+      <div class="pc-header">
+        <span class="pc-brand">NOMOS Sports</span>
+        <span class="pc-meta" id="pc-meta"></span>
+      </div>
+      <div class="pc-grid">
+        <div class="pc-grid-label" id="pc-grid-label">Seus meses</div>
+        <svg id="grid-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+        <div class="pc-legend" id="pc-legend"></div>
+      </div>
+      <div class="pc-stats" id="pc-stats"></div>
+      <div class="pc-free" id="pc-free"></div>
+      <div class="pc-insight" id="pc-insight"></div>
+      <div class="pc-footer">
+        <span class="pc-url">nomos.sports</span>
+        <span class="pc-tag">#vidaemmeses</span>
+      </div>
+    </div>
+
+    <div class="result-actions">
+      <button class="btn-share" onclick="shareCard()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+        Salvar e compartilhar
+      </button>
+      <button class="btn-share ghost" onclick="restart()">← Recalcular</button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const TOTAL_SLIDES = 13;
+const STUDY  = {sono:288,trabalho:126,desloc:18,tela:310,livre:333};
+const PLAYER = {sono:288,trabalho:52, desloc:51,livre:407};
+const COL = {
+  sono:'#4a4aaa',trabalho:'#2a7ab8',desloc:'#a6a797',
+  refeicao:'#e8a030',higiene:'#30a898',tarefas:'#c060d0',
+  tela:'#e05030',exercicio:'#c8e05b',atividade:'#f4ece6',livre:'#ffffff',
+};
+const STROKE = {
+  sono:'#2a2a88',trabalho:'#1a5a98',desloc:'#787870',
+  refeicao:'#c07010',higiene:'#107860',tarefas:'#903098',
+  tela:'#b03010',exercicio:'#a8bc44',atividade:'#c0b8b0',livre:'#065040',
+};
+
+// ── SLIDERS ──────────────────────────────────────────────────
+let current = 0;
+const slides = document.querySelectorAll('.slide');
+
+// Build progress bar
+const progBar = document.getElementById('progress-bar');
+for (let i = 0; i < TOTAL_SLIDES; i++) {
+  const seg = document.createElement('div'); seg.className='prog-seg';
+  seg.innerHTML='<div class="prog-fill" id="prog-'+i+'"></div>';
+  progBar.appendChild(seg);
+}
+
+function fmtH(v) {
+  const h=parseFloat(v);
+  if(h===0) return '0';
+  if(h<1) return Math.round(h*60)+'min';
+  const hh=Math.floor(h),mm=Math.round((h-hh)*60);
+  return mm ? hh+','+(mm===30?'5':'0') : hh+'';
+}
+
+// Routine sliders that count toward daily hours
+// Build 24 hour segments once
+const hcTrack = document.getElementById('hc-track');
+for (let i = 0; i < 24; i++) {
+  const seg = document.createElement('div');
+  seg.className = 'hc-seg';
+  seg.id = 'hc-seg-' + i;
+  hcTrack.appendChild(seg);
+}
+
+// Map each routine slide index → slider id
+const SLIDE_ROUTINE = {
+  4:'sono', 5:'trabalho', 6:'desloc', 7:'refeicao',
+  8:'higiene', 9:'tarefas', 10:'tela', 11:'exercicio'
+};
+
+function getVisitedHours() {
+  // Only count slides the user has already passed through (index < current)
+  let total = 0;
+  for (const [slideIdx, id] of Object.entries(SLIDE_ROUTINE)) {
+    if (parseInt(slideIdx) < current) {
+      total += parseFloat(document.getElementById('s-'+id)?.value) || 0;
+    }
+  }
+  // Also count the current slide's value if it's a routine slide
+  if (SLIDE_ROUTINE[current]) {
+    total += parseFloat(document.getElementById('s-'+SLIDE_ROUTINE[current])?.value) || 0;
+  }
+  return total;
+}
+
+function updateHoursCounter() {
+  const total = getVisitedHours();
+  const over = total > 24;
+  const meta = document.getElementById('hc-meta');
+
+  for (let i = 0; i < 24; i++) {
+    const seg = document.getElementById('hc-seg-' + i);
+    const active = i < total;
+    const pct = active ? 1 : Math.max(0, total - i);
+    const h = Math.round(4 + pct * 12);
+    seg.style.height = h + 'px';
+    seg.style.background = over ? '#e05030' : total > 18 ? '#e8a030' : '#c8e05b';
+  }
+
+  const fmt = v => Number.isInteger(v) ? v+'h' : v.toFixed(1).replace('.',',')+'h';
+  if (over) {
+    const extra = total - 24;
+    meta.innerHTML = `<strong style="color:#e05030">${fmt(total)}</strong> — ${fmt(extra)} acima de 24h`;
+  } else {
+    const rem = 24 - total;
+    meta.innerHTML = `<strong>${fmt(total)}</strong> preenchidas · <strong>${fmt(rem)}</strong> livres`;
+  }
+  meta.style.color = over ? '#e05030' : 'var(--muted)';
+}
+
+const sliderDefs = [
+  null,
+  {id:'idade',    fmt:v=>v,   isRoutine:false},
+  {id:'aposent',  fmt:v=>v,   isRoutine:false},
+  {id:'expect',   fmt:v=>v,   isRoutine:false},
+  {id:'sono',     fmt:fmtH,   isRoutine:true},
+  {id:'trabalho', fmt:fmtH,   isRoutine:true},
+  {id:'desloc',   fmt:fmtH,   isRoutine:true},
+  {id:'refeicao', fmt:fmtH,   isRoutine:true},
+  {id:'higiene',  fmt:fmtH,   isRoutine:true},
+  {id:'tarefas',  fmt:fmtH,   isRoutine:true},
+  {id:'tela',     fmt:fmtH,   isRoutine:true},
+  {id:'exercicio',fmt:fmtH,   isRoutine:true},
+  null, // custom slide — text + slider handled separately
+];
+
+sliderDefs.forEach((m,i) => {
+  if (!m) return;
+  const inp = document.getElementById('s-'+m.id);
+  const val = document.getElementById('v-'+m.id);
+  if (!inp||!val) return;
+  inp.addEventListener('input', () => {
+    val.textContent = m.fmt(inp.value);
+    if (m.isRoutine) updateHoursCounter();
+  });
+});
+
+// No quantity for custom activity — just the name
+// Handle "done" key on text input to advance
+document.getElementById('s-atividade').addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    e.target.blur();
+    if (current === TOTAL_SLIDES - 1) showResult();
+    else goTo(current + 1);
+  }
+});
+// When keyboard opens on slide 12, scroll input into view
+document.getElementById('s-atividade').addEventListener('focus', () => {
+  setTimeout(() => {
+    document.getElementById('s-atividade').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 300);
+});
+
+// Age/aposent/expect badges
+['idade','aposent','expect'].forEach(id => {
+  document.getElementById('s-'+id).addEventListener('input', e => {
+    document.getElementById('v-'+id).textContent = e.target.value;
+  });
+});
+
+// ── NAVIGATION ───────────────────────────────────────────────
+function updateProgress() {
+  for (let i=0;i<TOTAL_SLIDES;i++) {
+    const f = document.getElementById('prog-'+i);
+    f.style.width = i<current?'100%':i===current?'50%':'0%';
+  }
+  // show/hide hours counter (only during routine slides 4-11)
+  const ctr = document.getElementById('hours-counter');
+  ctr.classList.toggle('visible', current >= 4 && current <= 11);
+  updateHoursCounter();
+}
+
+function goTo(next) {
+  if (next<0||next>=TOTAL_SLIDES) return;
+  slides.forEach((s,i) => {
+    s.classList.remove('active','past');
+    if (i<next) s.classList.add('past');
+    else if (i===next) s.classList.add('active');
+  });
+  current = next;
+  updateProgress();
+  document.getElementById('btn-back').style.display = current>0?'block':'none';
+  document.getElementById('btn-next').textContent = current===TOTAL_SLIDES-1 ? 'Ver meus meses →' : 'Continuar →';
+}
+
+document.getElementById('btn-next').addEventListener('click', () => {
+  if (current === TOTAL_SLIDES-1) showResult();
+  else goTo(current+1);
+});
+document.getElementById('btn-back').addEventListener('click', () => goTo(current-1));
+
+// Swipe
+let tx=0;
+document.getElementById('slides').addEventListener('touchstart',e=>{tx=e.touches[0].clientX;},{passive:true});
+document.getElementById('slides').addEventListener('touchend',e=>{
+  const dx=e.changedTouches[0].clientX-tx;
+  if(Math.abs(dx)>60){if(dx<0&&current<TOTAL_SLIDES-1)goTo(current+1);else if(dx>0&&current>0)goTo(current-1);}
+},{passive:true});
+
+updateProgress();
+
+// ── CALCULATE ────────────────────────────────────────────────
+function val(id){ return parseFloat(document.getElementById('s-'+id).value); }
+function toM(hd,totalM){ return Math.round(hd/24*totalM); }
+
+function calcular() {
+  const idade=val('idade'), aposent=val('aposent'), expect=val('expect');
+  const hS=val('sono'),hT=val('trabalho'),hD=val('desloc'),hR=val('refeicao');
+  const hH=val('higiene'),hTa=val('tarefas'),hTe=val('tela'),hEx=val('exercicio');
+  const ativName=document.getElementById('s-atividade').value.trim()||'';
+
+  const startAge=Math.max(idade,18);
+  const totalM=Math.max(1,(expect-startAge)*12);
+  const anosVida=expect-startAge;
+  const fT=Math.max(0,Math.min(1,(aposent-startAge)/anosVida));
+
+  // Rotina = sono + trabalho + deslocamento + refeições + higiene + tarefas
+  const mS=toM(hS,totalM), mT=Math.round(hT/24*totalM*fT);
+  const mD=toM(hD,totalM), mR=toM(hR,totalM), mH=toM(hH,totalM), mTa=toM(hTa,totalM);
+  const mRotina = mS+mT+mD+mR+mH+mTa;
+
+  // Tempo livre = tudo que sobra da rotina
+  const mFreeTotal = Math.max(0, totalM - mRotina);
+
+  // Tela e exercício vivem dentro do tempo livre
+  const mTe = Math.min(toM(hTe,totalM), mFreeTotal);
+  const mEx = Math.min(toM(hEx,totalM), Math.max(0, mFreeTotal - mTe));
+
+  // Tempo que sobra = tempo livre - tela - exercício
+  const mSobra = Math.max(0, mFreeTotal - mTe - mEx);
+
+  return {startAge,aposent,expect,totalM,mS,mT,mD,mR,mH,mTa,mRotina,mFreeTotal,mTe,mEx,mSobra,ativName};
+}
+
+// ── SHOW RESULT ──────────────────────────────────────────────
+function showResult() {
+  const d = calcular();
+  const pctOf   = m => d.totalM>0    ? Math.round(m/d.totalM*100)    : 0;
+  const pctFree = m => d.mFreeTotal>0 ? Math.round(m/d.mFreeTotal*100) : 0;
+
+  document.getElementById('slides').style.display='none';
+  document.getElementById('bottom-bar').classList.add('hidden');
+  document.getElementById('progress-bar').style.display='none';
+  document.getElementById('logo-bar').style.display='none';
+  document.getElementById('result-screen').classList.add('active');
+
+  document.getElementById('pc-meta').textContent = d.startAge+'→'+d.expect+' · '+d.totalM+'m';
+  document.getElementById('pc-grid-label').textContent = 'Seus '+d.totalM+' meses';
+
+  drawGridSVG(d);
+
+  // Legend
+  const names={sono:'Sono',trabalho:'Trabalho',desloc:'Deslocamento',refeicao:'Refeições',higiene:'Higiene',tarefas:'Tarefas',tela:'Telas',exercicio:'Exercício',sobra:'Tempo que sobra'};
+  const mvals={sono:d.mS,trabalho:d.mT,desloc:d.mD,refeicao:d.mR,higiene:d.mH,tarefas:d.mTa,tela:d.mTe,exercicio:d.mEx,sobra:d.mSobra};
+  const legColors={sono:COL.sono,trabalho:COL.trabalho,desloc:COL.desloc,refeicao:COL.refeicao,higiene:COL.higiene,tarefas:COL.tarefas,tela:COL.tela,exercicio:COL.exercicio,sobra:'#ffffff'};
+  document.getElementById('pc-legend').innerHTML = Object.keys(names).map(k =>
+    `<div class="pc-leg"><div class="pc-leg-dot" style="background:${legColors[k]};${k==='sobra'?'border:1px solid #888;':''}"></div>${names[k]} — ${pctOf(mvals[k])}%</div>`
+  ).join('');
+
+  // Stats: tempo livre total | tela | exercício
+  const pct   = pctFree(d.mTe);
+  const pctEx = pctFree(d.mEx);
+  const pctSobra = pctFree(d.mSobra);
+  document.getElementById('pc-stats').innerHTML = [
+    {n: d.mFreeTotal+'m', c:'#f4ece6', l:'tempo livre',  s:'~'+(d.mFreeTotal/12).toFixed(0)+' anos · '+pctOf(d.mFreeTotal)+'% da sua vida'},
+    {n: d.mTe+'m',        c:'#e05030', l:'em telas',     s: pct+'% do tempo livre'},
+    {n: d.mEx+'m',        c:'#c8e05b', l:'em exercício', s: pctEx+'% do tempo livre'},
+  ].map(s=>`<div class="pc-stat"><div class="pc-stat-n" style="color:${s.c}">${s.n}</div><div class="pc-stat-l">${s.l}<br>${s.s}</div></div>`).join('');
+
+  // Donut: tela | exercício | tempo que sobra — all within free time
+  const pctRest = Math.max(0, 100 - pct - pctEx);
+  const donutSegs = [
+    {pct: pct,     color:'#e05030', label:'Telas',           months:d.mTe},
+    {pct: pctEx,   color:'#c8e05b', label:'Exercício',       months:d.mEx},
+    {pct: pctRest, color:'#ffffff', label:'Tempo que sobra', months:d.mSobra},
+  ];
+  const SIZE=100,CX=50,CY=50,OUTER=40,INNER=26;
+  let startAngle=-Math.PI/2, paths='';
+  for(const seg of donutSegs){
+    if(seg.pct<=0) continue;
+    const angle=(seg.pct/100)*2*Math.PI, end=startAngle+angle, la=angle>Math.PI?1:0;
+    const x1=CX+OUTER*Math.cos(startAngle),y1=CY+OUTER*Math.sin(startAngle);
+    const x2=CX+OUTER*Math.cos(end),       y2=CY+OUTER*Math.sin(end);
+    const x3=CX+INNER*Math.cos(end),       y3=CY+INNER*Math.sin(end);
+    const x4=CX+INNER*Math.cos(startAngle),y4=CY+INNER*Math.sin(startAngle);
+    paths+=`<path d="M${x1.toFixed(2)},${y1.toFixed(2)} A${OUTER},${OUTER} 0 ${la},1 ${x2.toFixed(2)},${y2.toFixed(2)} L${x3.toFixed(2)},${y3.toFixed(2)} A${INNER},${INNER} 0 ${la},0 ${x4.toFixed(2)},${y4.toFixed(2)} Z" fill="${seg.color}" stroke="none" stroke-width="0"/>`;
+    startAngle=end;
+  }
+  const donutSvg=`<svg viewBox="0 0 ${SIZE} ${SIZE}" width="90" height="90" xmlns="http://www.w3.org/2000/svg">${paths}<text x="${CX}" y="${CY-3}" text-anchor="middle" font-family="DM Serif Display,serif" font-size="13" fill="#ffffff">${d.mSobra}</text><text x="${CX}" y="${CY+9}" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="5.5" fill="#a6a797">tempo que sobra</text></svg>`;
+  const legRows=donutSegs.filter(s=>s.pct>0).map(s=>
+    `<div class="pc-free-row"><span class="pc-free-name"><div class="pc-free-dot" style="background:${s.color};${s.color==='#ffffff'?'border:1px solid #888;':''}"></div>${s.label}</span><span class="pc-free-pct" style="color:${s.color}">${s.months}m · ${s.pct}%</span></div>`
+  ).join('');
+  document.getElementById('pc-free').innerHTML=`
+    <div class="pc-free-label">Seu tempo livre — ${d.mFreeTotal}m</div>
+    <div class="pc-free-inner">
+      <div class="pc-free-donut">${donutSvg}</div>
+      <div class="pc-free-legs">${legRows}</div>
+    </div>`;
+
+  // Insight — no sub-line, add atividade line if present
+  let itxt;
+  if(pct>=80){
+    itxt=`<strong>${pct}% do tempo livre</strong> vai para telas. Em exercício: apenas <strong>${pctEx}%</strong>.`;
+  } else if(d.mTe>d.mEx*3&&d.mEx>0){
+    itxt=`Você passa <strong>${(d.mTe/d.mEx).toFixed(1)}× mais tempo em telas</strong> do que se exercitando.`;
+  } else if(d.mTe>=d.mFreeTotal*0.5){
+    itxt=`Metade do seu tempo livre vai para <strong>telas</strong>. ${pct}% da sua liberdade.`;
+  } else {
+    itxt=`<strong>${d.mFreeTotal} meses de tempo livre</strong> — ~${(d.mFreeTotal/12).toFixed(0)} anos para viver do jeito que quiser.`;
+  }
+
+  const ativLine = d.ativName
+    ? `<div class="pc-insight-sub" style="margin-top:10px">Você ainda tem <strong style="color:#f4ece6">${d.mSobra} meses que sobram</strong> para <strong style="color:#f4ece6">${d.ativName}</strong> — e tudo mais que importa.</div>`
+    : '';
+
+  document.getElementById('pc-insight').innerHTML=
+    `<div class="pc-insight-txt">${itxt}</div>${ativLine}`;
+
+  // Staggered reveal
+  setTimeout(()=>document.querySelectorAll('.pc-stat').forEach((el,i)=>setTimeout(()=>el.classList.add('in'),i*160)),300);
+  setTimeout(()=>document.getElementById('pc-free').classList.add('in'),750);
+  setTimeout(()=>document.getElementById('pc-insight').classList.add('in'),1000);
+}
+
+// ── DRAW GRID (SVG — vector, always crisp) ───────────────────
+function drawGridSVG(d) {
+  const svg = document.getElementById('grid-svg');
+  svg.innerHTML = '';
+  const COLS = 36;
+  const totalM = d.totalM;
+  const ROWS = Math.ceil(totalM / COLS);
+  const R = 4, CELL = R*2+1;
+  const W = COLS*CELL;
+  const H = ROWS*CELL;
+
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.setAttribute('width', '100%');
+  svg.setAttribute('height', 'auto');
+  svg.style.aspectRatio = `${W}/${H}`;
+
+  const segs = [
+    {n:d.mS, k:'sono'},{n:d.mT, k:'trabalho'},{n:d.mD, k:'desloc'},
+    {n:d.mR, k:'refeicao'},{n:d.mH, k:'higiene'},{n:d.mTa, k:'tarefas'},
+    {n:d.mTe,k:'tela'},{n:d.mEx,k:'exercicio'},
+    {n:d.mSobra, k:'livre'},
+  ];
+
+  // Rotina: dark/muted. Free time: vivid contrast.
+  // livre = bright white, tela = vivid red, exercicio = vivid lime
+  const FILL = {
+    sono:'#2e2e66',trabalho:'#1a4a70',desloc:'#5a5a50',
+    refeicao:'#6e5010',higiene:'#1a5a50',tarefas:'#4a2060',
+    tela:'#e05030',exercicio:'#c8e05b',livre:'#ffffff',
+  };
+  const STR = {
+    sono:'#1e1e44',trabalho:'#0e3050',desloc:'#3a3a34',
+    refeicao:'#4a3608',higiene:'#0e3c34',tarefas:'#301440',
+    tela:'#b03010',exercicio:'#a8bc44',livre:'#c8e05b',
+  };
+
+  const cells=[];
+  for(const seg of segs) for(let i=0;i<seg.n;i++) cells.push(seg.k);
+  while(cells.length<totalM) cells.push('livre');
+
+  const groups={};
+  for(let i=0;i<totalM;i++){
+    const k=cells[i];
+    if(!groups[k]) groups[k]=[];
+    groups[k].push(i);
+  }
+
+  for(const [k,indices] of Object.entries(groups)){
+    const g=document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.setAttribute('fill', FILL[k]);
+    g.setAttribute('stroke', STR[k]);
+    g.setAttribute('stroke-width','0.6');
+    for(const i of indices){
+      const col=i%COLS, row=Math.floor(i/COLS);
+      const cx=col*CELL+R, cy=row*CELL+R;
+      const circle=document.createElementNS('http://www.w3.org/2000/svg','circle');
+      circle.setAttribute('cx',cx); circle.setAttribute('cy',cy); circle.setAttribute('r',R);
+      g.appendChild(circle);
+    }
+    svg.appendChild(g);
+  }
+}
+
+
+
+// ── SHARE ────────────────────────────────────────────────────
+async function shareCard() {
+  try {
+    if (navigator.share) {
+      await navigator.share({title:'Minha vida em meses — NOMOS Sports',url:window.location.href});
+    } else {
+      // Export SVG as PNG via canvas
+      const svgEl = document.getElementById('grid-svg');
+      const data = new XMLSerializer().serializeToString(svgEl);
+      const blob = new Blob([data],{type:'image/svg+xml'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href=url; a.download='vida-em-meses-nomos.svg'; a.click();
+      URL.revokeObjectURL(url);
+    }
+  } catch(e) {}
+}
+
+// ── RESTART ──────────────────────────────────────────────────
+function restart() {
+  document.getElementById('result-screen').classList.remove('active');
+  document.getElementById('slides').style.display='';
+  document.getElementById('bottom-bar').classList.remove('hidden');
+  document.getElementById('progress-bar').style.display='';
+  document.getElementById('logo-bar').style.display='';
+  current=0;
+  slides.forEach((s,i)=>{s.classList.remove('active','past');if(i===0)s.classList.add('active');});
+  updateProgress();
+  document.getElementById('btn-back').style.display='none';
+}
+</script>
+</body>
+</html>
