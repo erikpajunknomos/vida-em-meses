@@ -199,6 +199,7 @@ input[type=range]::-moz-range-thumb{width:32px;height:32px;border-radius:50%;bac
 .result-refs a{color:var(--muted);text-decoration:none;display:block;}
 .result-refs a:first-of-type{color:var(--lime);}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
 <div id="app">
@@ -647,7 +648,7 @@ function showResult() {
     paths+=`<path d="M${x1.toFixed(2)},${y1.toFixed(2)} A${OUTER},${OUTER} 0 ${la},1 ${x2.toFixed(2)},${y2.toFixed(2)} L${x3.toFixed(2)},${y3.toFixed(2)} A${INNER},${INNER} 0 ${la},0 ${x4.toFixed(2)},${y4.toFixed(2)} Z" fill="${seg.color}" stroke="none" stroke-width="0"/>`;
     startAngle=end;
   }
-  const donutSvg=`<svg viewBox="0 0 ${SIZE} ${SIZE}" width="78" height="78" xmlns="http://www.w3.org/2000/svg">${paths}<text x="${CX}" y="${CY-3}" text-anchor="middle" font-family="DM Serif Display,serif" font-size="13" fill="#ffffff">${d.mSobra}</text><text x="${CX}" y="${CY+9}" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="5.5" fill="#a6a797">tempo que sobra</text></svg>`;
+  const donutSvg=`<svg viewBox="0 0 ${SIZE} ${SIZE}" width="78" height="78" xmlns="http://www.w3.org/2000/svg">${paths}</svg>`;
   const legRows=donutSegs.filter(s=>s.pct>0).map(s=>
     `<div class="pc-free-row"><span class="pc-free-name"><div class="pc-free-dot" style="background:${s.color};${s.color==='#ffffff'?'border:1px solid #888;':''}"></div>${s.label}</span><span class="pc-free-pct" style="color:${s.color}">${s.months}m · ${s.pct}%</span></div>`
   ).join('');
@@ -756,13 +757,13 @@ async function shareCard() {
   btn.disabled = true;
 
   try {
-    const html2canvas = await import('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.esm.min.js').then(m=>m.default);
     const card = document.getElementById('post-card');
     const canvas = await html2canvas(card, {
       backgroundColor: '#021e19',
-      scale: 3,
+      scale: 2,
       useCORS: true,
       logging: false,
+      allowTaint: true,
     });
 
     canvas.toBlob(async blob => {
@@ -771,23 +772,19 @@ async function shareCard() {
         if (navigator.canShare && navigator.canShare({files:[file]})) {
           await navigator.share({files:[file], title:'Minha vida em meses — NOMOS Sports'});
         } else {
-          // Fallback: download
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
-          a.href=url; a.download='vida-em-meses-nomos.png'; a.click();
+          a.href=url; a.download='vida-em-meses.png'; a.click();
           URL.revokeObjectURL(url);
         }
-      } catch(e) {
-        // User cancelled share — not an error
-      }
+      } catch(e) { /* cancelled */ }
       btn.innerHTML = orig;
       btn.disabled = false;
     }, 'image/png');
+
   } catch(e) {
-    // Fallback if html2canvas fails
-    try {
-      await navigator.share({title:'Minha vida em meses — NOMOS Sports', url:window.location.href});
-    } catch(_) {}
+    console.error('html2canvas error:', e);
+    try { await navigator.share({title:'Minha vida em meses',url:window.location.href}); } catch(_){}
     btn.innerHTML = orig;
     btn.disabled = false;
   }
