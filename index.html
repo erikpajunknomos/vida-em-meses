@@ -673,6 +673,7 @@ function showResult() {
   const ativLine = d.ativName
     ? `<div class="pc-insight-sub" style="margin-top:10px">Você ainda tem <strong style="color:#f4ece6">${d.mSobra} meses que sobram</strong> para <strong style="color:#f4ece6">${d.ativName}</strong> — e tudo mais que importa.</div>`
     : '';
+  document.getElementById('pc-insight').innerHTML =
     `<div class="pc-insight-txt">${itxt}</div>${ativLine}`;
 
   // Staggered reveal
