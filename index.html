@@ -344,7 +344,7 @@ input[type=range]::-moz-range-thumb{width:32px;height:32px;border-radius:50%;bac
   <div id="result-screen">
     <div id="post-card">
       <div class="pc-header">
-        <span class="pc-brand">NOMOS Sports</span>
+        <span class="pc-brand">Sua vida em meses</span>
         <span class="pc-meta" id="pc-meta"></span>
       </div>
       <div class="pc-grid">
@@ -606,7 +606,7 @@ function showResult() {
   document.getElementById('logo-bar').style.display='none';
   document.getElementById('result-screen').classList.add('active');
 
-  document.getElementById('pc-meta').textContent = d.startAge+'→'+d.expect+' · '+d.totalM+'m';
+  document.getElementById('pc-meta').textContent = d.startAge+'→'+d.expect+' · '+d.totalM+' meses';
   document.getElementById('pc-grid-label').textContent = 'Seus '+d.totalM+' meses';
 
   drawGridSVG(d);
@@ -624,9 +624,9 @@ function showResult() {
   const pctEx = pctFree(d.mEx);
   const pctSobra = pctFree(d.mSobra);
   document.getElementById('pc-stats').innerHTML = [
-    {n: d.mFreeTotal+'m', c:'#f4ece6', l:'tempo livre',  s:'~'+(d.mFreeTotal/12).toFixed(0)+' anos · '+pctOf(d.mFreeTotal)+'% da sua vida'},
-    {n: d.mTe+'m',        c:'#e05030', l:'em telas',     s: pct+'% do tempo livre'},
-    {n: d.mEx+'m',        c:'#c8e05b', l:'em exercício', s: pctEx+'% do tempo livre'},
+    {n: d.mFreeTotal+' meses', c:'#f4ece6', l:'tempo livre',  s:'~'+(d.mFreeTotal/12).toFixed(0)+' anos · '+pctOf(d.mFreeTotal)+'% da sua vida'},
+    {n: d.mTe+' meses',        c:'#e05030', l:'em telas',     s: pct+'% do tempo livre'},
+    {n: d.mEx+' meses',        c:'#c8e05b', l:'em exercício', s: pctEx+'% do tempo livre'},
   ].map(s=>`<div class="pc-stat"><div class="pc-stat-n" style="color:${s.c}">${s.n}</div><div class="pc-stat-l">${s.l}<br>${s.s}</div></div>`).join('');
 
   // Donut: tela | exercício | tempo que sobra — all within free time
@@ -650,10 +650,10 @@ function showResult() {
   }
   const donutSvg=`<svg viewBox="0 0 ${SIZE} ${SIZE}" width="78" height="78" xmlns="http://www.w3.org/2000/svg">${paths}</svg>`;
   const legRows=donutSegs.filter(s=>s.pct>0).map(s=>
-    `<div class="pc-free-row"><span class="pc-free-name"><div class="pc-free-dot" style="background:${s.color};${s.color==='#ffffff'?'border:1px solid #888;':''}"></div>${s.label}</span><span class="pc-free-pct" style="color:${s.color}">${s.months}m · ${s.pct}%</span></div>`
+    `<div class="pc-free-row"><span class="pc-free-name"><div class="pc-free-dot" style="background:${s.color};${s.color==='#ffffff'?'border:1px solid #888;':''}"></div>${s.label}</span><span class="pc-free-pct" style="color:${s.color}">${s.months} meses · ${s.pct}%</span></div>`
   ).join('');
   document.getElementById('pc-free').innerHTML=`
-    <div class="pc-free-label">Seu tempo livre — ${d.mFreeTotal}m</div>
+    <div class="pc-free-label">Seu tempo livre — ${d.mFreeTotal} meses</div>
     <div class="pc-free-inner">
       <div class="pc-free-donut">${donutSvg}</div>
       <div class="pc-free-legs">${legRows}</div>
@@ -674,8 +674,6 @@ function showResult() {
   const ativLine = d.ativName
     ? `<div class="pc-insight-sub" style="margin-top:10px">Você ainda tem <strong style="color:#f4ece6">${d.mSobra} meses que sobram</strong> para <strong style="color:#f4ece6">${d.ativName}</strong> — e tudo mais que importa.</div>`
     : '';
-
-  document.getElementById('pc-insight').innerHTML=
     `<div class="pc-insight-txt">${itxt}</div>${ativLine}`;
 
   // Staggered reveal
@@ -811,9 +809,9 @@ async function shareCard() {
 
     // Header
     ctx.fillStyle=LIME; ctx.font=`600 10px ${SANS}`; ctx.textAlign='left';
-    ctx.fillText('NOMOS SPORTS',PAD,y+10);
+    ctx.fillText('SUA VIDA EM MESES',PAD,y+10);
     ctx.fillStyle=MUTED; ctx.font=`400 10px ${SANS}`; ctx.textAlign='right';
-    ctx.fillText(d.startAge+'→'+d.expect+' · '+d.totalM+'m',CW-PAD,y+10);
+    ctx.fillText(d.startAge+'→'+d.expect+' · '+d.totalM+' meses',CW-PAD,y+10);
     ctx.textAlign='left'; y+=24;
 
     line(ctx,PAD,y,CW-PAD,'rgba(255,255,255,0.08)'); y+=8;
@@ -851,9 +849,9 @@ async function shareCard() {
 
     // Stats
     const sw=(CW-PAD*2)/3;
-    [{n:d.mFreeTotal+'m',c:TEXT,l:'tempo livre',s:'~'+(d.mFreeTotal/12).toFixed(0)+' anos · '+pctOf(d.mFreeTotal)+'% da vida'},
-     {n:d.mTe+'m',c:'#e05030',l:'em telas',s:pct+'% do tempo livre'},
-     {n:d.mEx+'m',c:LIME,l:'em exercício',s:pctEx+'% do tempo livre'}
+    [{n:d.mFreeTotal+' meses',c:TEXT,l:'tempo livre',s:'~'+(d.mFreeTotal/12).toFixed(0)+' anos · '+pctOf(d.mFreeTotal)+'% da vida'},
+     {n:d.mTe+' meses',c:'#e05030',l:'em telas',s:pct+'% do tempo livre'},
+     {n:d.mEx+' meses',c:LIME,l:'em exercício',s:pctEx+'% do tempo livre'}
     ].forEach((s,i)=>{
       const sx=PAD+i*sw+sw/2;
       ctx.fillStyle=s.c;ctx.font=`400 22px ${SERIF}`;ctx.textAlign='center';ctx.fillText(s.n,sx,y+22);
@@ -863,7 +861,7 @@ async function shareCard() {
 
     // Free time label
     ctx.fillStyle=LIME;ctx.font=`600 9px ${SANS}`;
-    ctx.fillText('SEU TEMPO LIVRE — '+d.mFreeTotal+'m',PAD,y+8); y+=16;
+    ctx.fillText('SEU TEMPO LIVRE — '+d.mFreeTotal+' meses',PAD,y+8); y+=16;
 
     // Donut + legend side by side
     const dcx=PAD+36, dcy=y+36, dOuter=30, dInner=19;
@@ -881,7 +879,7 @@ async function shareCard() {
       const ly=y+16+i*20;
       ctx.beginPath();ctx.arc(PAD+76,ly+4,4,0,Math.PI*2);ctx.fillStyle=ld.c;ctx.fill();
       ctx.fillStyle=MUTED;ctx.font=`400 10px ${SANS}`;ctx.textAlign='left';ctx.fillText(ld.l,PAD+84,ly+8);
-      ctx.fillStyle=ld.c;ctx.textAlign='right';ctx.fillText(ld.m+'m · '+ld.pct+'%',CW-PAD,ly+8);
+      ctx.fillStyle=ld.c;ctx.textAlign='right';ctx.fillText(ld.m+' meses · '+ld.pct+'%',CW-PAD,ly+8);
     });
     ctx.textAlign='left';
     y+=76; line(ctx,PAD,y,CW-PAD,'rgba(255,255,255,0.08)'); y+=12;
