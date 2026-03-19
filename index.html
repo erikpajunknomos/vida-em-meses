@@ -400,11 +400,13 @@ for (let i = 0; i < TOTAL_SLIDES; i++) {
 }
 
 function fmtH(v) {
-  const h=parseFloat(v);
-  if(h===0) return '0';
-  if(h<1) return Math.round(h*60)+'min';
-  const hh=Math.floor(h),mm=Math.round((h-hh)*60);
-  return mm ? hh+','+(mm===30?'5':'0') : hh+'';
+  const h = parseFloat(v);
+  if (h === 0) return '0';
+  const hh = Math.floor(h);
+  const mm = Math.round((h - hh) * 60);
+  if (hh === 0) return mm + 'min';
+  if (mm === 0) return hh + 'h';
+  return hh + 'h ' + mm + 'min';
 }
 
 // Routine sliders that count toward daily hours
@@ -758,183 +760,142 @@ async function shareCard() {
     const d = calcular();
     const pctOf   = m => d.totalM>0 ? Math.round(m/d.totalM*100) : 0;
     const pctFree = m => d.mFreeTotal>0 ? Math.round(m/d.mFreeTotal*100) : 0;
+    const pct=pctFree(d.mTe), pctEx=pctFree(d.mEx), pctRest=Math.max(0,100-pct-pctEx);
 
-    const DPR = 2;
-    const CW = 390, CH = 700;
-    const cv = document.createElement('canvas');
-    cv.width = CW*DPR; cv.height = CH*DPR;
-    const ctx = cv.getContext('2d');
-    ctx.scale(DPR, DPR);
+    const DPR=2, CW=390, PAD=20;
+    const BG='#021e19', LIME='#c8e05b', TEXT='#f4ece6', MUTED='#a6a797', DIM='#3a4a38';
+    const SERIF="Georgia,'Times New Roman',serif", SANS="system-ui,-apple-system,sans-serif";
 
-    const BG = '#021e19', S1 = '#032e27', LIME = '#c8e05b', TEXT = '#f4ece6', MUTED = '#a6a797', DIM = '#3a4a38';
+    // ── Pre-calculate heights ──────────────────────────────────
+    const COLS=36;
+    const dotSize=(CW-PAD*2)/COLS;
+    const ROWS=Math.ceil(d.totalM/COLS);
+    const gridH=ROWS*dotSize;
 
-    // Background
-    ctx.fillStyle = BG;
-    ctx.fillRect(0,0,CW,CH);
-
-    // Card outline
-    ctx.strokeStyle = 'rgba(200,224,91,0.2)';
-    ctx.lineWidth = 1;
-    roundRect(ctx, 12, 12, CW-24, CH-24, 20);
-    ctx.stroke();
-
-    // Header
-    ctx.fillStyle = LIME;
-    ctx.font = '500 10px DM Sans, sans-serif';
-    ctx.letterSpacing = '2px';
-    ctx.fillText('NOMOS SPORTS', 24, 36);
-    ctx.fillStyle = MUTED;
-    ctx.font = '300 10px DM Sans, sans-serif';
-    ctx.letterSpacing = '0px';
-    ctx.textAlign = 'right';
-    ctx.fillText(d.startAge+'→'+d.expect+' · '+d.totalM+'m', CW-24, 36);
-    ctx.textAlign = 'left';
-
-    // Divider
-    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
-    ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(24,46); ctx.lineTo(CW-24,46); ctx.stroke();
-
-    // Grid label
-    ctx.fillStyle = LIME;
-    ctx.font = '500 9px DM Sans, sans-serif';
-    ctx.fillText('SEUS '+d.totalM+' MESES', 24, 64);
-
-    // Draw dot grid
-    const COLS = 36, R = 4, CELL = R*2+1;
-    const gridX = 24, gridY = 72;
-    const gridW = CW - 48;
-    const dotSize = gridW / COLS;
-    const dr = dotSize/2 - 0.5;
-
-    const segs=[
-      {n:d.mS,k:'sono'},{n:d.mT,k:'trabalho'},{n:d.mD,k:'desloc'},
-      {n:d.mR,k:'refeicao'},{n:d.mH,k:'higiene'},{n:d.mTa,k:'tarefas'},
-      {n:d.mTe,k:'tela'},{n:d.mEx,k:'exercicio'},{n:d.mSobra,k:'livre'},
-    ];
-    const FILL2={sono:'#2e2e66',trabalho:'#1a4a70',desloc:'#5a5a50',refeicao:'#6e5010',higiene:'#1a5a50',tarefas:'#4a2060',tela:'#e05030',exercicio:'#c8e05b',livre:'#ffffff'};
-    const cells=[];
-    for(const s of segs) for(let i=0;i<s.n;i++) cells.push(s.k);
-    while(cells.length<d.totalM) cells.push('livre');
-
-    const ROWS = Math.ceil(d.totalM/COLS);
-    for(let i=0;i<d.totalM;i++){
-      const col=i%COLS, row=Math.floor(i/COLS);
-      const cx=gridX+col*dotSize+dotSize/2;
-      const cy=gridY+row*dotSize+dotSize/2;
-      ctx.beginPath();
-      ctx.arc(cx,cy,dr,0,Math.PI*2);
-      ctx.fillStyle=FILL2[cells[i]]||'#ffffff';
-      ctx.fill();
-    }
-
-    const gridBottom = gridY + ROWS*dotSize + 8;
-
-    // Legend
+    // Legend lines: measure how many rows
+    const tmpCv=document.createElement('canvas');
+    const tmpCtx=tmpCv.getContext('2d');
+    tmpCtx.font=`300 9px ${SANS}`;
     const legNames={sono:'Sono',trabalho:'Trabalho',desloc:'Deslocamento',refeicao:'Refeições',higiene:'Higiene',tarefas:'Tarefas',tela:'Telas',exercicio:'Exercício',livre:'Tempo que sobra'};
     const legMvals={sono:d.mS,trabalho:d.mT,desloc:d.mD,refeicao:d.mR,higiene:d.mH,tarefas:d.mTa,tela:d.mTe,exercicio:d.mEx,livre:d.mSobra};
+    let legRows=1, lxT=0;
+    for(const k of Object.keys(legNames)){
+      const tw=tmpCtx.measureText(legNames[k]+' — '+pctOf(legMvals[k])+'%').width+18;
+      if(lxT+tw>CW-PAD*2){legRows++;lxT=0;} lxT+=tw+4;
+    }
+    const legH=legRows*14+4;
+
+    // Insight text lines
+    let insLine1;
+    if(pct>=80) insLine1=`${pct}% do tempo livre vai para telas. Em exercício: apenas ${pctEx}%.`;
+    else if(d.mTe>d.mEx*3&&d.mEx>0) insLine1=`Você passa ${(d.mTe/d.mEx).toFixed(1)}× mais tempo em telas do que se exercitando.`;
+    else if(d.mTe>=d.mFreeTotal*0.5) insLine1=`Metade do tempo livre vai para telas — ${pct}% da sua liberdade.`;
+    else insLine1=`${d.mFreeTotal} meses de tempo livre — ~${(d.mFreeTotal/12).toFixed(0)} anos para viver do jeito que quiser.`;
+    const insLine2=d.ativName?`Você ainda tem ${d.mSobra} meses que sobram para ${d.ativName}.`:'';
+
+    tmpCtx.font=`400 16px ${SERIF}`;
+    const ins1Lines=Math.ceil(tmpCtx.measureText(insLine1).width/(CW-PAD*2))+1;
+    const insH=ins1Lines*22+(insLine2?20:0)+8;
+
+    const CH = 26+8+10+gridH+legH+2+52+52+8+76+insH+32;
+
+    // ── Draw ──────────────────────────────────────────────────
+    const cv=document.createElement('canvas');
+    cv.width=CW*DPR; cv.height=CH*DPR;
+    const ctx=cv.getContext('2d');
+    ctx.scale(DPR,DPR);
+
+    ctx.fillStyle=BG; ctx.fillRect(0,0,CW,CH);
+
+    let y=14;
+
+    // Header
+    ctx.fillStyle=LIME; ctx.font=`600 10px ${SANS}`; ctx.textAlign='left';
+    ctx.fillText('NOMOS SPORTS',PAD,y+10);
+    ctx.fillStyle=MUTED; ctx.font=`400 10px ${SANS}`; ctx.textAlign='right';
+    ctx.fillText(d.startAge+'→'+d.expect+' · '+d.totalM+'m',CW-PAD,y+10);
+    ctx.textAlign='left'; y+=24;
+
+    line(ctx,PAD,y,CW-PAD,'rgba(255,255,255,0.08)'); y+=8;
+
+    // Grid label
+    ctx.fillStyle=LIME; ctx.font=`600 9px ${SANS}`;
+    ctx.fillText('SEUS '+d.totalM+' MESES',PAD,y+8); y+=14;
+
+    // Dot grid
+    const FILL2={sono:'#2e2e66',trabalho:'#1a4a70',desloc:'#5a5a50',refeicao:'#6e5010',higiene:'#1a5a50',tarefas:'#4a2060',tela:'#e05030',exercicio:'#c8e05b',livre:'#ffffff'};
+    const cells=[];
+    const gsegs=[{n:d.mS,k:'sono'},{n:d.mT,k:'trabalho'},{n:d.mD,k:'desloc'},{n:d.mR,k:'refeicao'},{n:d.mH,k:'higiene'},{n:d.mTa,k:'tarefas'},{n:d.mTe,k:'tela'},{n:d.mEx,k:'exercicio'},{n:d.mSobra,k:'livre'}];
+    for(const s of gsegs) for(let i=0;i<s.n;i++) cells.push(s.k);
+    while(cells.length<d.totalM) cells.push('livre');
+    const dr=dotSize/2-0.5;
+    for(let i=0;i<d.totalM;i++){
+      const col=i%COLS, row=Math.floor(i/COLS);
+      ctx.beginPath();ctx.arc(PAD+col*dotSize+dotSize/2,y+row*dotSize+dotSize/2,dr,0,Math.PI*2);
+      ctx.fillStyle=FILL2[cells[i]]||'#ffffff';ctx.fill();
+    }
+    y+=gridH+6;
+
+    // Legend
     const legColors2={sono:'#2e2e66',trabalho:'#1a4a70',desloc:'#5a5a50',refeicao:'#6e5010',higiene:'#1a5a50',tarefas:'#4a2060',tela:'#e05030',exercicio:'#c8e05b',livre:'#ffffff'};
-    ctx.font = '300 9px DM Sans, sans-serif';
-    let lx=24, ly=gridBottom+12;
+    ctx.font=`400 9px ${SANS}`; let lx=PAD;
     for(const k of Object.keys(legNames)){
       const label=legNames[k]+' — '+pctOf(legMvals[k])+'%';
       const tw=ctx.measureText(label).width+18;
-      if(lx+tw>CW-24){lx=24;ly+=14;}
-      ctx.beginPath();ctx.arc(lx+4,ly-3,4,0,Math.PI*2);ctx.fillStyle=legColors2[k];ctx.fill();
-      ctx.fillStyle=MUTED;
-      ctx.fillText(label, lx+12, ly);
+      if(lx+tw>CW-PAD){lx=PAD;y+=14;}
+      ctx.beginPath();ctx.arc(lx+4,y+5,4,0,Math.PI*2);ctx.fillStyle=legColors2[k];ctx.fill();
+      ctx.fillStyle=MUTED;ctx.fillText(label,lx+12,y+8);
       lx+=tw+4;
     }
+    y+=16; line(ctx,PAD,y,CW-PAD,'rgba(255,255,255,0.08)'); y+=8;
 
-    const legBottom = ly+10;
-
-    // Separator
-    ctx.strokeStyle='rgba(255,255,255,0.06)'; ctx.lineWidth=1;
-    ctx.beginPath();ctx.moveTo(24,legBottom);ctx.lineTo(CW-24,legBottom);ctx.stroke();
-
-    // Stats row
-    const statY = legBottom+14;
-    const sw=(CW-48)/3;
-    const stats=[
-      {n:d.mFreeTotal+'m',c:TEXT,l:'tempo livre',s:'~'+(d.mFreeTotal/12).toFixed(0)+' anos · '+pctOf(d.mFreeTotal)+'%'},
-      {n:d.mTe+'m',c:'#e05030',l:'em telas',s:pctFree(d.mTe)+'% do tempo livre'},
-      {n:d.mEx+'m',c:LIME,l:'em exercício',s:pctFree(d.mEx)+'% do tempo livre'},
-    ];
-    stats.forEach((s,i)=>{
-      const sx=24+i*sw;
-      ctx.fillStyle=s.c;
-      ctx.font='400 22px DM Serif Display, serif';
-      ctx.textAlign='center';
-      ctx.fillText(s.n,sx+sw/2,statY+24);
-      ctx.fillStyle=MUTED;
-      ctx.font='300 8px DM Sans, sans-serif';
-      ctx.fillText(s.l,sx+sw/2,statY+36);
-      ctx.fillText(s.s,sx+sw/2,statY+46);
+    // Stats
+    const sw=(CW-PAD*2)/3;
+    [{n:d.mFreeTotal+'m',c:TEXT,l:'tempo livre',s:'~'+(d.mFreeTotal/12).toFixed(0)+' anos · '+pctOf(d.mFreeTotal)+'% da vida'},
+     {n:d.mTe+'m',c:'#e05030',l:'em telas',s:pct+'% do tempo livre'},
+     {n:d.mEx+'m',c:LIME,l:'em exercício',s:pctEx+'% do tempo livre'}
+    ].forEach((s,i)=>{
+      const sx=PAD+i*sw+sw/2;
+      ctx.fillStyle=s.c;ctx.font=`400 22px ${SERIF}`;ctx.textAlign='center';ctx.fillText(s.n,sx,y+22);
+      ctx.fillStyle=MUTED;ctx.font=`400 8px ${SANS}`;ctx.fillText(s.l,sx,y+33);ctx.fillText(s.s,sx,y+43);
     });
-    ctx.textAlign='left';
+    ctx.textAlign='left'; y+=52; line(ctx,PAD,y,CW-PAD,'rgba(255,255,255,0.08)'); y+=8;
 
-    const statBottom = statY+56;
-    ctx.strokeStyle='rgba(255,255,255,0.06)';ctx.lineWidth=1;
-    ctx.beginPath();ctx.moveTo(24,statBottom);ctx.lineTo(CW-24,statBottom);ctx.stroke();
+    // Free time label
+    ctx.fillStyle=LIME;ctx.font=`600 9px ${SANS}`;
+    ctx.fillText('SEU TEMPO LIVRE — '+d.mFreeTotal+'m',PAD,y+8); y+=16;
 
-    // Free time section label
-    const freeY=statBottom+14;
-    ctx.fillStyle=LIME;ctx.font='500 9px DM Sans, sans-serif';
-    ctx.fillText('SEU TEMPO LIVRE — '+d.mFreeTotal+'m', 24, freeY);
-
-    // Donut
-    const dcx=66, dcy=freeY+52, dOuter=34, dInner=22;
-    const pct=pctFree(d.mTe),pctEx=pctFree(d.mEx),pctRest=Math.max(0,100-pct-pctEx);
+    // Donut + legend side by side
+    const dcx=PAD+36, dcy=y+36, dOuter=30, dInner=19;
     const dSegs=[{pct,c:'#e05030'},{pct:pctEx,c:LIME},{pct:pctRest,c:'#ffffff'}];
     let ang=-Math.PI/2;
     for(const ds of dSegs){
       if(ds.pct<=0) continue;
       const a=(ds.pct/100)*2*Math.PI;
       ctx.beginPath();ctx.moveTo(dcx+dOuter*Math.cos(ang),dcy+dOuter*Math.sin(ang));
-      ctx.arc(dcx,dcy,dOuter,ang,ang+a);
-      ctx.arc(dcx,dcy,dInner,ang+a,ang,true);
-      ctx.closePath();ctx.fillStyle=ds.c;ctx.fill();
-      ang+=a;
+      ctx.arc(dcx,dcy,dOuter,ang,ang+a);ctx.arc(dcx,dcy,dInner,ang+a,ang,true);
+      ctx.closePath();ctx.fillStyle=ds.c;ctx.fill();ang+=a;
     }
-
-    // Donut legend
-    const legData=[
-      {l:'Telas',m:d.mTe,pct:pct,c:'#e05030'},
-      {l:'Exercício',m:d.mEx,pct:pctEx,c:LIME},
-      {l:'Tempo que sobra',m:d.mSobra,pct:pctRest,c:'#ffffff'},
-    ];
-    let llY=freeY+28;
-    ctx.font='300 10px DM Sans, sans-serif';
-    for(const ld of legData){
-      ctx.beginPath();ctx.arc(110,llY-3,4,0,Math.PI*2);ctx.fillStyle=ld.c;ctx.fill();
-      ctx.fillStyle=MUTED;ctx.fillText(ld.l,120,llY);
-      ctx.fillStyle=ld.c;ctx.textAlign='right';
-      ctx.fillText(ld.m+'m · '+ld.pct+'%',CW-24,llY);
-      ctx.textAlign='left';llY+=18;
-    }
-
-    const freeBottom=freeY+80;
-    ctx.strokeStyle='rgba(255,255,255,0.06)';ctx.lineWidth=1;
-    ctx.beginPath();ctx.moveTo(24,freeBottom);ctx.lineTo(CW-24,freeBottom);ctx.stroke();
+    [{l:'Telas',m:d.mTe,pct,c:'#e05030'},{l:'Exercício',m:d.mEx,pct:pctEx,c:LIME},{l:'Tempo que sobra',m:d.mSobra,pct:pctRest,c:'#ffffff'}]
+    .forEach((ld,i)=>{
+      const ly=y+16+i*20;
+      ctx.beginPath();ctx.arc(PAD+76,ly+4,4,0,Math.PI*2);ctx.fillStyle=ld.c;ctx.fill();
+      ctx.fillStyle=MUTED;ctx.font=`400 10px ${SANS}`;ctx.textAlign='left';ctx.fillText(ld.l,PAD+84,ly+8);
+      ctx.fillStyle=ld.c;ctx.textAlign='right';ctx.fillText(ld.m+'m · '+ld.pct+'%',CW-PAD,ly+8);
+    });
+    ctx.textAlign='left';
+    y+=76; line(ctx,PAD,y,CW-PAD,'rgba(255,255,255,0.08)'); y+=12;
 
     // Insight
-    const insY=freeBottom+16;
-    const pctFreeTE=pctFree(d.mTe), pctFreeEx=pctFree(d.mEx);
-    let line1,line2='';
-    if(pctFreeTE>=80) line1=`${pctFreeTE}% do tempo livre vai para telas.`;
-    else if(d.mTe>d.mEx*3&&d.mEx>0) line1=`Você passa ${(d.mTe/d.mEx).toFixed(1)}× mais tempo em telas do que se exercitando.`;
-    else if(d.mTe>=d.mFreeTotal*0.5) line1=`Metade do tempo livre vai para telas. ${pctFreeTE}% da sua liberdade.`;
-    else line1=`${d.mFreeTotal} meses de tempo livre — ~${(d.mFreeTotal/12).toFixed(0)} anos para viver do jeito que quiser.`;
-    if(d.ativName) line2=`Você ainda tem ${d.mSobra} meses que sobram para ${d.ativName}.`;
-
-    ctx.fillStyle=TEXT;ctx.font='400 15px DM Serif Display, serif';
-    wrapText(ctx,line1,24,insY,CW-48,22);
-    if(line2){ctx.fillStyle=MUTED;ctx.font='300 11px DM Sans, sans-serif';ctx.fillText(line2,24,insY+48);}
+    ctx.fillStyle=TEXT;ctx.font=`400 16px ${SERIF}`;
+    y=wrapText(ctx,insLine1,PAD,y,CW-PAD*2,22)+4;
+    if(insLine2){ctx.fillStyle=MUTED;ctx.font=`400 11px ${SANS}`;ctx.fillText(insLine2,PAD,y);y+=18;}
 
     // Footer
-    const footY=CH-30;
-    ctx.fillStyle=DIM;ctx.font='300 9px DM Sans, sans-serif';ctx.fillText('nomos.sports',24,footY);
-    ctx.fillStyle=LIME;ctx.textAlign='right';ctx.fillText('#vidaemmeses',CW-24,footY);ctx.textAlign='left';
+    y+=10;
+    ctx.fillStyle=DIM;ctx.font=`400 9px ${SANS}`;ctx.fillText('nomos.sports',PAD,y);
+    ctx.fillStyle=LIME;ctx.textAlign='right';ctx.fillText('#vidaemmeses',CW-PAD,y);
+    ctx.textAlign='left';
 
     // Share
     cv.toBlob(async blob=>{
@@ -957,6 +918,11 @@ async function shareCard() {
   }
 }
 
+function line(ctx,x1,y,x2,color){
+  ctx.strokeStyle=color;ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(x1,y);ctx.lineTo(x2,y);ctx.stroke();
+}
+
 function roundRect(ctx,x,y,w,h,r){
   ctx.beginPath();
   ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.arcTo(x+w,y,x+w,y+r,r);
@@ -973,7 +939,8 @@ function wrapText(ctx,text,x,y,maxW,lineH){
     if(ctx.measureText(test).width>maxW&&line){ctx.fillText(line,x,y);line=w;y+=lineH;}
     else line=test;
   }
-  if(line)ctx.fillText(line,x,y);
+  if(line){ctx.fillText(line,x,y);y+=lineH;}
+  return y;
 }
 
 // ── RESTART ──────────────────────────────────────────────────
