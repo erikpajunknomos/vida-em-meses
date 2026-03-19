@@ -165,8 +165,7 @@ input[type=range]::-moz-range-thumb{width:32px;height:32px;border-radius:50%;bac
 .pc-free-pct{font-weight:500;}
 
 /* Insight */
-.pc-insight{padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.05);opacity:0;transform:translateY(8px);transition:opacity .5s,transform .5s;}
-.pc-insight.in{opacity:1;transform:translateY(0);}
+.pc-insight{padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.05);}
 .pc-insight-txt{font-family:'DM Serif Display',serif;font-size:clamp(13px,3.8vw,17px);line-height:1.4;margin-bottom:4px;}
 .pc-insight-txt strong{color:var(--lime);font-style:italic;font-weight:400;}
 .pc-insight-sub{font-size:11px;color:var(--muted);line-height:1.5;}
@@ -755,6 +754,86 @@ async function shareCard() {
   btn.disabled = true;
 
   try {
+    const card = document.getElementById('post-card');
+    const rect = card.getBoundingClientRect();
+    const W = rect.width, H = rect.height;
+    const DPR = window.devicePixelRatio || 2;
+
+    // Serialize the card HTML + all styles into an SVG foreignObject
+    // This preserves real fonts and layout
+    const clone = card.cloneNode(true);
+    clone.style.cssText = `width:${W}px;margin:0;border-radius:0;border:none;`;
+
+    // Collect all stylesheets
+    const styles = [...document.styleSheets].map(sheet => {
+      try {
+        return [...sheet.cssRules].map(r => r.cssText).join('\n');
+      } catch { return ''; }
+    }).join('\n');
+
+    const html = `
+      <html><head>
+        <meta charset="utf-8">
+        <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
+        <style>
+          *{box-sizing:border-box;margin:0;padding:0;}
+          body{background:#021e19;width:${W}px;}
+          ${styles}
+        </style>
+      </head><body>${clone.outerHTML}</body></html>`;
+
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
+      <foreignObject width="100%" height="100%">
+        ${html}
+      </foreignObject>
+    </svg>`;
+
+    const blob = new Blob([svg], {type:'image/svg+xml;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const cv = document.createElement('canvas');
+      cv.width = W * DPR;
+      cv.height = H * DPR;
+      const ctx = cv.getContext('2d');
+      ctx.scale(DPR, DPR);
+      ctx.drawImage(img, 0, 0, W, H);
+      URL.revokeObjectURL(url);
+
+      cv.toBlob(async pngBlob => {
+        const file = new File([pngBlob], 'vida-em-meses.png', {type:'image/png'});
+        try {
+          if (navigator.canShare && navigator.canShare({files:[file]})) {
+            await navigator.share({files:[file], title:'Minha vida em meses — NOMOS Sports'});
+          } else {
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(pngBlob);
+            a.download = 'vida-em-meses.png';
+            a.click();
+          }
+        } catch(e) {} // user cancelled
+        btn.innerHTML = orig;
+        btn.disabled = false;
+      }, 'image/png');
+    };
+    img.onerror = () => {
+      // SVG foreignObject blocked (common in some browsers) — fallback to canvas draw
+      URL.revokeObjectURL(url);
+      shareCardCanvas(btn, orig);
+    };
+    img.src = url;
+
+  } catch(e) {
+    console.error(e);
+    shareCardCanvas(btn, orig);
+  }
+}
+
+// Fallback: draw with canvas (system fonts, no web fonts)
+async function shareCardCanvas(btn, orig) {
+  try {
     const d = calcular();
     const pctOf   = m => d.totalM>0 ? Math.round(m/d.totalM*100) : 0;
     const pctFree = m => d.mFreeTotal>0 ? Math.round(m/d.mFreeTotal*100) : 0;
@@ -764,63 +843,36 @@ async function shareCard() {
     const BG='#021e19', LIME='#c8e05b', TEXT='#f4ece6', MUTED='#a6a797', DIM='#3a4a38';
     const SERIF="Georgia,'Times New Roman',serif", SANS="system-ui,-apple-system,sans-serif";
 
-    // ── Pre-calculate heights ──────────────────────────────────
     const COLS=36;
     const dotSize=(CW-PAD*2)/COLS;
     const ROWS=Math.ceil(d.totalM/COLS);
     const gridH=ROWS*dotSize;
 
-    // Legend lines: measure how many rows
-    const tmpCv=document.createElement('canvas');
-    const tmpCtx=tmpCv.getContext('2d');
-    tmpCtx.font=`300 9px ${SANS}`;
-    const legNames={sono:'Sono',trabalho:'Trabalho',desloc:'Deslocamento',refeicao:'Refeições',higiene:'Higiene',tarefas:'Tarefas',tela:'Telas',exercicio:'Exercício',livre:'Tempo que sobra'};
-    const legMvals={sono:d.mS,trabalho:d.mT,desloc:d.mD,refeicao:d.mR,higiene:d.mH,tarefas:d.mTa,tela:d.mTe,exercicio:d.mEx,livre:d.mSobra};
-    let legRows=1, lxT=0;
-    for(const k of Object.keys(legNames)){
-      const tw=tmpCtx.measureText(legNames[k]+' — '+pctOf(legMvals[k])+'%').width+18;
-      if(lxT+tw>CW-PAD*2){legRows++;lxT=0;} lxT+=tw+4;
-    }
-    const legH=legRows*14+4;
-
-    // Insight text lines
     let insLine1;
-    if(pct>=80) insLine1=`${pct}% do tempo livre vai para telas. Em exercício: apenas ${pctEx}%.`;
+    if(pct>=80) insLine1=`${pct}% do tempo livre vai para telas.`;
     else if(d.mTe>d.mEx*3&&d.mEx>0) insLine1=`Você passa ${(d.mTe/d.mEx).toFixed(1)}× mais tempo em telas do que se exercitando.`;
     else if(d.mTe>=d.mFreeTotal*0.5) insLine1=`Metade do tempo livre vai para telas — ${pct}% da sua liberdade.`;
     else insLine1=`${d.mFreeTotal} meses de tempo livre — ~${(d.mFreeTotal/12).toFixed(0)} anos para viver do jeito que quiser.`;
     const insLine2=d.ativName?`Você ainda tem ${d.mSobra} meses que sobram para ${d.ativName}.`:'';
 
-    tmpCtx.font=`400 16px ${SERIF}`;
-    const ins1Lines=Math.ceil(tmpCtx.measureText(insLine1).width/(CW-PAD*2))+1;
-    const insH=ins1Lines*22+(insLine2?20:0)+8;
-
-    const CH = 26+8+10+gridH+legH+2+52+52+8+76+insH+32;
-
-    // ── Draw ──────────────────────────────────────────────────
+    const CH = 26+8+10+gridH+50+2+52+52+8+76+70+32;
     const cv=document.createElement('canvas');
     cv.width=CW*DPR; cv.height=CH*DPR;
     const ctx=cv.getContext('2d');
     ctx.scale(DPR,DPR);
-
     ctx.fillStyle=BG; ctx.fillRect(0,0,CW,CH);
-
     let y=14;
 
-    // Header
     ctx.fillStyle=LIME; ctx.font=`600 10px ${SANS}`; ctx.textAlign='left';
     ctx.fillText('SUA VIDA EM MESES',PAD,y+10);
-    ctx.fillStyle=MUTED; ctx.font=`400 10px ${SANS}`; ctx.textAlign='right';
+    ctx.fillStyle=MUTED; ctx.font=`400 9px ${SANS}`; ctx.textAlign='right';
     ctx.fillText(d.startAge+'→'+d.expect+' · '+d.totalM+' meses',CW-PAD,y+10);
     ctx.textAlign='left'; y+=24;
-
     line(ctx,PAD,y,CW-PAD,'rgba(255,255,255,0.08)'); y+=8;
 
-    // Grid label
     ctx.fillStyle=LIME; ctx.font=`600 9px ${SANS}`;
     ctx.fillText('SEUS '+d.totalM+' MESES',PAD,y+8); y+=14;
 
-    // Dot grid
     const FILL2={sono:'#2e2e66',trabalho:'#1a4a70',desloc:'#5a5a50',refeicao:'#6e5010',higiene:'#1a5a50',tarefas:'#4a2060',tela:'#e05030',exercicio:'#c8e05b',livre:'#ffffff'};
     const cells=[];
     const gsegs=[{n:d.mS,k:'sono'},{n:d.mT,k:'trabalho'},{n:d.mD,k:'desloc'},{n:d.mR,k:'refeicao'},{n:d.mH,k:'higiene'},{n:d.mTa,k:'tarefas'},{n:d.mTe,k:'tela'},{n:d.mEx,k:'exercicio'},{n:d.mSobra,k:'livre'}];
@@ -828,13 +880,14 @@ async function shareCard() {
     while(cells.length<d.totalM) cells.push('livre');
     const dr=dotSize/2-0.5;
     for(let i=0;i<d.totalM;i++){
-      const col=i%COLS, row=Math.floor(i/COLS);
+      const col=i%COLS,row=Math.floor(i/COLS);
       ctx.beginPath();ctx.arc(PAD+col*dotSize+dotSize/2,y+row*dotSize+dotSize/2,dr,0,Math.PI*2);
       ctx.fillStyle=FILL2[cells[i]]||'#ffffff';ctx.fill();
     }
     y+=gridH+6;
 
-    // Legend
+    const legNames={sono:'Sono',trabalho:'Trabalho',desloc:'Deslocamento',refeicao:'Refeições',higiene:'Higiene',tarefas:'Tarefas',tela:'Telas',exercicio:'Exercício',livre:'Tempo que sobra'};
+    const legMvals={sono:d.mS,trabalho:d.mT,desloc:d.mD,refeicao:d.mR,higiene:d.mH,tarefas:d.mTa,tela:d.mTe,exercicio:d.mEx,livre:d.mSobra};
     const legColors2={sono:'#2e2e66',trabalho:'#1a4a70',desloc:'#5a5a50',refeicao:'#6e5010',higiene:'#1a5a50',tarefas:'#4a2060',tela:'#e05030',exercicio:'#c8e05b',livre:'#ffffff'};
     ctx.font=`400 9px ${SANS}`; let lx=PAD;
     for(const k of Object.keys(legNames)){
@@ -842,38 +895,33 @@ async function shareCard() {
       const tw=ctx.measureText(label).width+18;
       if(lx+tw>CW-PAD){lx=PAD;y+=14;}
       ctx.beginPath();ctx.arc(lx+4,y+5,4,0,Math.PI*2);ctx.fillStyle=legColors2[k];ctx.fill();
-      ctx.fillStyle=MUTED;ctx.fillText(label,lx+12,y+8);
-      lx+=tw+4;
+      ctx.fillStyle=MUTED;ctx.fillText(label,lx+12,y+8); lx+=tw+4;
     }
     y+=16; line(ctx,PAD,y,CW-PAD,'rgba(255,255,255,0.08)'); y+=8;
 
-    // Stats
     const sw=(CW-PAD*2)/3;
     [{n:d.mFreeTotal+' meses',c:TEXT,l:'tempo livre',s:'~'+(d.mFreeTotal/12).toFixed(0)+' anos · '+pctOf(d.mFreeTotal)+'% da vida'},
      {n:d.mTe+' meses',c:'#e05030',l:'em telas',s:pct+'% do tempo livre'},
      {n:d.mEx+' meses',c:LIME,l:'em exercício',s:pctEx+'% do tempo livre'}
     ].forEach((s,i)=>{
       const sx=PAD+i*sw+sw/2;
-      ctx.fillStyle=s.c;ctx.font=`400 22px ${SERIF}`;ctx.textAlign='center';ctx.fillText(s.n,sx,y+22);
-      ctx.fillStyle=MUTED;ctx.font=`400 8px ${SANS}`;ctx.fillText(s.l,sx,y+33);ctx.fillText(s.s,sx,y+43);
+      ctx.fillStyle=s.c;ctx.font=`600 18px ${SERIF}`;ctx.textAlign='center';ctx.fillText(s.n,sx,y+20);
+      ctx.fillStyle=MUTED;ctx.font=`400 8px ${SANS}`;ctx.fillText(s.l,sx,y+31);ctx.fillText(s.s,sx,y+41);
     });
     ctx.textAlign='left'; y+=52; line(ctx,PAD,y,CW-PAD,'rgba(255,255,255,0.08)'); y+=8;
 
-    // Free time label
     ctx.fillStyle=LIME;ctx.font=`600 9px ${SANS}`;
     ctx.fillText('SEU TEMPO LIVRE — '+d.mFreeTotal+' meses',PAD,y+8); y+=16;
 
-    // Donut + legend side by side
-    const dcx=PAD+36, dcy=y+36, dOuter=30, dInner=19;
-    const dSegs=[{pct,c:'#e05030'},{pct:pctEx,c:LIME},{pct:pctRest,c:'#ffffff'}];
+    const dcx=PAD+36,dcy=y+36,dOuter=30,dInner=19;
     let ang=-Math.PI/2;
-    for(const ds of dSegs){
-      if(ds.pct<=0) continue;
+    [{pct,c:'#e05030'},{pct:pctEx,c:LIME},{pct:pctRest,c:'#ffffff'}].forEach(ds=>{
+      if(ds.pct<=0) return;
       const a=(ds.pct/100)*2*Math.PI;
       ctx.beginPath();ctx.moveTo(dcx+dOuter*Math.cos(ang),dcy+dOuter*Math.sin(ang));
       ctx.arc(dcx,dcy,dOuter,ang,ang+a);ctx.arc(dcx,dcy,dInner,ang+a,ang,true);
       ctx.closePath();ctx.fillStyle=ds.c;ctx.fill();ang+=a;
-    }
+    });
     [{l:'Telas',m:d.mTe,pct,c:'#e05030'},{l:'Exercício',m:d.mEx,pct:pctEx,c:LIME},{l:'Tempo que sobra',m:d.mSobra,pct:pctRest,c:'#ffffff'}]
     .forEach((ld,i)=>{
       const ly=y+16+i*20;
@@ -881,40 +929,33 @@ async function shareCard() {
       ctx.fillStyle=MUTED;ctx.font=`400 10px ${SANS}`;ctx.textAlign='left';ctx.fillText(ld.l,PAD+84,ly+8);
       ctx.fillStyle=ld.c;ctx.textAlign='right';ctx.fillText(ld.m+' meses · '+ld.pct+'%',CW-PAD,ly+8);
     });
-    ctx.textAlign='left';
-    y+=76; line(ctx,PAD,y,CW-PAD,'rgba(255,255,255,0.08)'); y+=12;
+    ctx.textAlign='left'; y+=76; line(ctx,PAD,y,CW-PAD,'rgba(255,255,255,0.08)'); y+=12;
 
-    // Insight
-    ctx.fillStyle=TEXT;ctx.font=`400 16px ${SERIF}`;
+    ctx.fillStyle=TEXT;ctx.font=`400 15px ${SERIF}`;
     y=wrapText(ctx,insLine1,PAD,y,CW-PAD*2,22)+4;
     if(insLine2){ctx.fillStyle=MUTED;ctx.font=`400 11px ${SANS}`;ctx.fillText(insLine2,PAD,y);y+=18;}
 
-    // Footer
     y+=10;
     ctx.fillStyle=DIM;ctx.font=`400 9px ${SANS}`;ctx.fillText('nomos.sports',PAD,y);
     ctx.fillStyle=LIME;ctx.textAlign='right';ctx.fillText('#vidaemmeses',CW-PAD,y);
-    ctx.textAlign='left';
 
-    // Share
     cv.toBlob(async blob=>{
       const file=new File([blob],'vida-em-meses.png',{type:'image/png'});
       try{
         if(navigator.canShare&&navigator.canShare({files:[file]})){
           await navigator.share({files:[file],title:'Minha vida em meses — NOMOS Sports'});
         } else {
-          const url=URL.createObjectURL(blob);
-          const a=document.createElement('a');a.href=url;a.download='vida-em-meses.png';a.click();
-          URL.revokeObjectURL(url);
+          const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='vida-em-meses.png';a.click();
         }
       }catch(e){}
-      btn.innerHTML=orig;btn.disabled=false;
+      btn.innerHTML=orig; btn.disabled=false;
     },'image/png');
-
   } catch(e) {
     console.error(e);
-    btn.innerHTML=orig;btn.disabled=false;
+    btn.innerHTML=orig; btn.disabled=false;
   }
 }
+
 
 function line(ctx,x1,y,x2,color){
   ctx.strokeStyle=color;ctx.lineWidth=1;
