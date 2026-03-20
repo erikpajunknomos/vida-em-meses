@@ -882,7 +882,7 @@ function measure(ctx,CW,PAD,SANS,SERIF,gridH,ins1,ins2,d) {
     const tw=ctx.measureText(legNames[k]+' — X%').width+18;
     if(lx+tw>CW-PAD){lx=PAD;y+=14;} lx+=tw+4;
   }
-  y+=20+10+58+10+20+82+14;
+  y+=20+10+58+10+18+(3*20+8)+6+20;
   // insight lines
   ctx.font=`400 17px ${SERIF}`;
   const words=ins1.split(' '); let line='';
@@ -947,9 +947,10 @@ function draw(ctx,CW,PAD,SANS,SERIF,BG,LIME,TEXT,MUTED,DIM,FILL,cells,dotSize,gr
 
   // Free label + donut
   ctx.fillStyle=LIME; ctx.font=`700 9px ${SANS}`;
-  ctx.fillText(`SEU TEMPO LIVRE — ${d.mFreeTotal} meses`,PAD,y+8); y+=20;
+  ctx.fillText(`SEU TEMPO LIVRE — ${d.mFreeTotal} meses`,PAD,y+8); y+=18;
 
-  const dcx=PAD+36,dcy=y+36,dOuter=32,dInner=20;
+  const donutH = 3*20+8; // 3 rows × 20px + padding
+  const dcx=PAD+30,dcy=y+donutH/2,dOuter=28,dInner=17;
   let ang=-Math.PI/2;
   [{pct,c:'#e05030'},{pct:pctEx,c:LIME},{pct:pctRest,c:'#ffffff'}].forEach(ds=>{
     if(ds.pct<=0) return;
@@ -960,12 +961,12 @@ function draw(ctx,CW,PAD,SANS,SERIF,BG,LIME,TEXT,MUTED,DIM,FILL,cells,dotSize,gr
   });
   [{l:'Telas',m:d.mTe,p:pct,c:'#e05030'},{l:'Exercício',m:d.mEx,p:pctEx,c:LIME},{l:'Tempo que sobra',m:d.mSobra,p:pctRest,c:'#ffffff'}]
   .forEach((ld,i)=>{
-    const ly=y+14+i*22;
-    ctx.beginPath();ctx.arc(PAD+78,ly+5,4,0,Math.PI*2);ctx.fillStyle=ld.c;ctx.fill();
-    ctx.fillStyle=MUTED;ctx.font=`400 10px ${SANS}`;ctx.textAlign='left';ctx.fillText(ld.l,PAD+87,ly+9);
+    const ly=y+4+i*20;
+    ctx.beginPath();ctx.arc(PAD+68,ly+5,4,0,Math.PI*2);ctx.fillStyle=ld.c;ctx.fill();
+    ctx.fillStyle=MUTED;ctx.font=`400 10px ${SANS}`;ctx.textAlign='left';ctx.fillText(ld.l,PAD+76,ly+9);
     ctx.fillStyle=ld.c;ctx.textAlign='right';ctx.fillText(`${ld.m} meses · ${ld.p}%`,CW-PAD,ly+9);
   });
-  ctx.textAlign='left'; y+=82; ln(PAD,y,CW-PAD); y+=14;
+  ctx.textAlign='left'; y+=donutH+6; ln(PAD,y,CW-PAD); y+=20;
 
   // Insight
   ctx.fillStyle=TEXT; ctx.font=`400 17px ${SERIF}`;
